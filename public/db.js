@@ -13,3 +13,40 @@ request.onsuccess = event => {
         checkDB();
     };
 };
+
+request.onerror = event => {
+    console.log("sorry, your browser does not support this version of indexedDB for offline use. " + event.target.errorCode);
+};
+
+function saveRecord(record) {
+    const transaction = db.transaction(["pending"], "readwrite");
+    const store = transaction.objectStore("pending");
+    store.add(record);
+}
+
+function checkDB() {
+    const transaction = db.transaction(["pending"], "readwrite");
+    const store = transaction.objectStore("pending");
+    const getAll = store.getAll();
+
+    getAll.onsuccess = event => {
+        if (getAll.result.length > 0) {
+            fetch("/api/transaction/bulk", {
+                method: "POST",
+                body: JSON.stringify(getAll, result),
+                headers: {
+                    Accept: "application/json, text/plain, */*",
+                    "Content-Type": "application/json"
+                }
+            })
+            .then(response => response.json())
+            .then(() => {
+                const transaction = db.transaction(["pending"], "readwrite");
+                const store = transaction.objectStore("pending");
+                store.clear();
+            });
+        };
+    };
+};
+
+window.addEventListener("online", checkDB);
